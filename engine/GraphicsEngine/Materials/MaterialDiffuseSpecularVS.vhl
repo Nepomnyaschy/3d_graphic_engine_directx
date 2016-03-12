@@ -1,0 +1,101 @@
+struct Light
+{
+	float4	type;		// тип источника
+	float4	position;	// позиция источника (есть у Point и Spot)
+	float4	direction;	// направление света
+	float4	color;		// (цвет.r, цвет.g, цвет.b, интенсивность)
+};
+
+float4x4	matrixWorldViewProjT	: register(c0);
+float4x3	matrixWorldNormal		: register(c4);
+float4x3	matrixWorldT			: register(c7);
+float3		cameraPosition			: register(c10);
+float4		lightsCount				: register(c11);
+Light		lights[3];
+
+
+
+struct VS_INPUT
+{
+	float4 	Position	: POSITION;
+	float4 	Normal		: NORMAL;
+	float4 	Color		: COLOR;
+};
+
+struct VS_OUTPUT
+{
+	float4 	Position	: POSITION;
+	float4 	Color		: COLOR0;
+};
+
+
+float3 calcDiffuse(int lightIdx, float3 lightDir, float3 vertexNormal)
+{
+	float diffuse = saturate( dot(-lightDir, vertexNormal) );
+
+	// Цвет = diffuse * (цвет источника) * (интенсивность источника)
+	float3 color = diffuse * lights[lightIdx].color.rgb * lights[lightIdx].color.a;
+
+	return color;
+}
+
+
+float3 calcSpecular(int lightIdx, float3 lightDir, float3 vertexNormal, float3 vertexPos)
+{
+	float3 H = normalize(normalize(cameraPosition - vertexPos) - lightDir);
+	float specular = pow( abs( dot(vertexNormal, H) ), 500 );
+
+	// Цвет += specular * (цвет блика) * (интенсивность источника)
+	float3 color = specular * float3(1,1,1) * lights[lightIdx].color.a;
+
+	return color;
+}
+
+
+VS_OUTPUT main( VS_INPUT input )
+{
+	VS_OUTPUT output;
+
+	output.Position	= mul(input.Position, matrixWorldViewProjT);
+	
+	// Переводим нормаль из локальной в глобальную систему координат
+	float3 vertexNormal = float3(0,0,0);
+	vertexNormal = mul(input.Normal, matrixWorldNormal).xyz;
+	vertexNormal = normalize(vertexNormal);
+
+	// Переводим позицию из локальной в глобальную систему координат
+	float3 vertexPos = mul(input.Position, matrixWorldT);
+	
+	// Рассчитываем компоненту освещения diffuse от каждого источника
+	float3 color = float3(0,0,0);	
+	for (int i = 0; i < 3; ++i)
+	{
+		// Выходим, как только закончились источники освещения
+		if (i >= lightsCount.x) break;
+		
+		float3 lightDir = float3(0,0,0);
+
+		float type = lights[i].type.x;
+		float epsilon = 0.001;
+		
+		// Directional light
+		if (abs(type - 1) < epsilon)
+		{
+			lightDir = normalize(lights[i].direction.xyz).xyz;
+		}
+		// Point light
+		else if (abs(type - 2) < epsilon)
+		{
+			lightDir = normalize(vertexPos - lights[i].position.xyz).xyz;
+		}
+		
+		color += calcDiffuse (i, lightDir, vertexNormal);
+		color += calcSpecular(i, lightDir, vertexNormal, vertexPos);
+	}
+	
+	color += float3(0.1, 0.1, 0.1);
+
+	output.Color = float4(color.x, color.y, color.z, 1);
+	
+	return output;
+};

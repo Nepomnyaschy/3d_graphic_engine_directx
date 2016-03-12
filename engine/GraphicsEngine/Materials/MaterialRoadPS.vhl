@@ -1,0 +1,68 @@
+struct DirectLight
+{
+	float4	position;	// позиция источника (есть у Point и Spot)
+	float4	direction;	// направление света
+	float4	color;		// (цвет.r, цвет.g, цвет.b, интенсивность)
+};
+
+sampler2D earth;
+sampler2D normalMap;
+DirectLight directLight;
+
+struct PS_INPUT
+{
+	float4 	position	: POSITION0;
+	float4 	Color		: COLOR0;
+	float4	uv1			: TEXCOORD0;	
+	float4	Normal		: TEXCOORD1; //текстурные координаты
+};
+
+struct PS_OUTPUT
+{
+	float4 	Color	 	: COLOR0;
+};
+
+float3 calcAmbient(float4 uv1)
+{
+	float  c  = 0.15;
+	float3 k = float3(c,c,c);
+	float3 color = tex2D(earth,uv1.xy).rgb;
+	return k*color;
+}
+
+float3 calcDiffuse(float3 pointNormal)
+{
+	float3 lightDir = normalize(directLight.direction.xyz);
+	float diffuse = saturate( dot(lightDir, pointNormal) ); //cos()
+	float3 color = diffuse * directLight.color.rgb;
+	return color;
+}
+
+float3 directCase(float3 pointNormal,float4 uv1)
+{
+			float3 color=(0,0,0);
+			color += calcAmbient(uv1);
+			color += calcDiffuse (pointNormal);
+			return color;
+}
+/*
+	Здесь просчитываем, все по формуле из слайдов. 
+*/
+PS_OUTPUT main( PS_INPUT input )
+{
+	PS_OUTPUT output;
+	float3 n = normalize(input.Normal.xyz);
+	float3 t = normalize(cross(n,float3(1,1,1)));
+	float3 b = normalize(cross(n,t));
+	float3 pointNormal = (tex2D(normalMap,input.uv1.xy).rgb * float3(2,2,2) - float3(1,1,1));
+	pointNormal = normalize((pointNormal.x * t + pointNormal.y * b + pointNormal.z * n));
+
+	float3 color1 = float3(0,0,0);
+    //color1 = calcAmbient(input.uv1); 
+
+	color1 = directCase(pointNormal,input.uv1); 
+	output.Color.rgb = (color1.rgb);
+	output.Color.w   = input.Color.w;
+
+	return output;
+};

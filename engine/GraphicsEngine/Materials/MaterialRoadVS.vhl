@@ -1,0 +1,31 @@
+float4x4	matrixWorldViewProjT;
+float4x3	matrixWorldNormal;
+float4		materialColor;
+//“ут просчитываю Ќормаль к вершинам.
+struct VS_INPUT
+{
+	float4 	Position	: POSITION;
+	float4 	Normal		: NORMAL;
+	float4 	Color		: COLOR;
+	float4	uv1			: TEXCOORD0;
+};
+
+struct VS_OUTPUT
+{
+	float4 	Position	: POSITION;
+	float4 	Color		: COLOR0;
+	float4	uv1			: TEXCOORD0; //текстурные координаты
+	float4	Normal		: TEXCOORD1; //текстурные координаты
+};
+
+VS_OUTPUT main( VS_INPUT input )
+{
+	VS_OUTPUT output;
+
+	output.Position	= mul(input.Position, matrixWorldViewProjT);
+	output.Normal	= float4( mul(input.Normal, matrixWorldNormal).xyz,0);
+	output.uv1		= input.uv1;
+	output.Color		= float4(1.0f,1.0f, 1.0f, 0.0f);
+	
+	return output;
+};

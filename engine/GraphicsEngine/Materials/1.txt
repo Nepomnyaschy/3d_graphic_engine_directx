@@ -1,0 +1,5 @@
+compilation succeeded; see MaterialUnlitVS.h
+compilation succeeded; see MaterialDiffuseVS.h
+compilation succeeded; see MaterialDiffuseSpecularVS.h
+compilation succeeded; see MaterialRoadVS.h
+compilation succeeded; see MaterialRoadPS.h
